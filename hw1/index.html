@@ -27,86 +27,149 @@
 	</head>
 	<body>
 		<div class="container">
-		<h1>CS184/284A Spring 2025 Homework 1 Write-Up</h1>
-		<div style="text-align: center;">Names: </div>
+			<h1>CS184/284A Spring 2025 Homework 1 Write-Up</h1>
+			<div style="text-align: center;">Names: Kunhong Lyu</div>
 
-		<br>
+			<br>
 
-		Link to webpage: (TODO) <a href="https://cs184.eecs.berkeley.edu/sp25">cs184.eecs.berkeley.edu/sp25</a>
-		
-		<br>
+			Link to webpage: <a href="https://lapluma430.github.io/cs184hw_website/">cs184hw_website</a>
 
-		Link to GitHub repository: (TODO) <a href="https://cs184.eecs.berkeley.edu/sp25">cs184.eecs.berkeley.edu/sp25</a>
+			<br>
 
-		<figure>
-			<img src="lion.jpg" alt="Lion" style="width:50%"/>
-			<figcaption>You can add images with captions!</figcaption>
-		</figure>
+			Link to GitHub repository: <a href="https://github.com/lapluma430/cs184hw_website.git">cs184hw_website_github</a>
 
-		<!--
-		We've already added one heading per task, to make your write-up as navigable when grading. Please fit your write-up within these sections!
-		-->
+			<figure>
+				<img src="lion.jpg" alt="Lion" style="width:50%" />
+				<figcaption>You can add images with captions!</figcaption>
+			</figure>
 
-		<h2>Overview</h2>
-		Give a high-level overview of what you implemented in this homework. Think about what you've built as a whole. Share your thoughts on what interesting things you've learned from completing the homework.
+			<!--
+	We've already added one heading per task, to make your write-up as navigable when grading. Please fit your write-up within these sections!
+	-->
 
-		<h2>Task 1: Drawing Single-Color Triangles</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+			<h2>Overview</h2>
+			Give a high-level overview of what you implemented in this homework. Think about what you've built as a whole. Share your thoughts on what interesting things you've learned from completing the homework.
 
-		<p>Here is an example 2x2 gridlike structure using an HTML table. Each <b>tr</b> is a row and each <b>td</b> is a column in that row. You might find this useful for framing and showing your result images in an organized fashion.</p>
-		<div style="display: flex; flex-direction: column; align-items: center;">
-			<table style="width: 100%; text-align: center; border-collapse: collapse;">
-			  <tr>
-				<td style="text-align: center;">
-				  <img src="lion.jpg" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
-				</td>
-				<td style="text-align: center;">
-				  <img src="lion.jpg" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
-				</td>
-			  </tr>
-			  <tr>
-				<td style="text-align: center;">
-				  <img src="lion.jpg" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
-				</td>
-				<td style="text-align: center;">
-				  <img src="lion.jpg" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
-				</td>
-			  </tr>
-			</table>
-		</div>
-		
-		<h2>Task 2: Antialiasing by Supersampling</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+			<h2>Task 1: Drawing Single-Color Triangles</h2>
+			To rasterize a triangle, I first framed the triangle using the three vertices I knew about. This way, the for loop would iterate through fewer pixels to achieve the same goal, otherwise it would have to iterate through many pixels that are obviously not inside the triangle. The for loop selects possible pixels, and then uses the calculation method used in class to determine whether the point is inside the triangle. If it is inside the triangle, the sample_buffer is used directly to set the pixel to the given color.
+			<div style="display: flex; flex-direction: column; align-items: center;">
+				<table style="width: 100%; text-align: center; border-collapse: collapse;">
+					<tr>
+						<td style="text-align: center;">
+							<img src="task1_screenshot.png" width="400px" />
+							<figcaption>Rasterize Triangle</figcaption>
+						</td>
+					</tr>
+				</table>
+			</div>
 
-		<h2>Task 3: Transforms</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+			<h2>Task 2: Antialiasing by Supersampling</h2>
+			In order to perform super sampling, I first changed the set methods such as set_sample_rate because when calling, the size of sample_buffer needs to be multiplied by sample_rate. Then I divide 1 by sqrt(sample_rate) to get how many parts I need to divide the length and width of a pixel into for judgment. I iterate all the pixels in the bounding box I selected through two for loops, and then use two more for loops to get more detailed pixels in sample_buffer. Then use the judgment formula to determine whether these pixels are inside the triangle. During this period, all the colors of super_sampling iterations in this pixel are added and stored in a color variable. When these two for loops end, the elements in the obtained color are divided by sample_rate to obtain the required color of this pixel. Supersample can obtain more satisfactory pixel colors through more detailed methods to make the boundaries of pixels transition and reduce the sense of aliasing.
+			<div style="display: flex; flex-direction: column; align-items: center;">
+				<table style="width: 100%; text-align: center; border-collapse: collapse;">
+					<tr>
+						<td style="text-align: center;">
+							<img src="task2_screenshot_1.png" width="300px" />
+							<figcaption>Sample Rate = 1</figcaption>
+						</td>
+						<td style="text-align: center;">
+							<img src="task2_screenshot_4.png" width="300px" />
+							<figcaption>Sample Rate = 4</figcaption>
+						</td>
+						<td style="text-align: center;">
+							<img src="task2_screenshot_16.png" width="300px" />
+							<figcaption>Sample Rate = 16</figcaption>
+						</td>
+					</tr>
+				</table>
+			</div>
 
-		<h2>Task 4: Barycentric coordinates</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+			<h2>Task 3: Transforms</h2>
+			I wanted the cube man to exercise with dumbbells, so I added some cubes and moved them over the cube man's hands, changing the shape and position of the cube man's arms a bit.
+			<div style="display: flex; flex-direction: column; align-items: center;">
+				<table style="width: 100%; text-align: center; border-collapse: collapse;">
+					<tr>
+						<td style="text-align: center;">
+							<img src="task3_screenshot.png" width="400px" />
+							<figcaption>Power!</figcaption>
+						</td>
+					</tr>
+				</table>
+			</div>
 
-		<h2>Task 5: "Pixel sampling" for texture mapping</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+			<h2>Task 4: Barycentric coordinates</h2>
+			Each point p in a triangle has a unique barycentric coordinate (u, v, w), which satisfies \(ua+vb+wc)\ = p, where a, b, c are the vertices of the triangle. We can use this feature to get the corresponding color of each point in the triangle using u, v, w as the ratio of the color, and we can get a triangle with very smooth color changes.
+			<div style="display: flex; flex-direction: column; align-items: center;">
+				<table style="width: 100%; text-align: center; border-collapse: collapse;">
+					<tr>
+						<td style="text-align: center;">
+							<img src="task4_screenshot_1.png" width="400px" />
+							<figcaption>Smooth Color Triangle</figcaption>
+						</td>
+						<td style="text-align: center;">
+							<img src="task4_screenshot_2.png" width="400px" />
+							<figcaption>Color Wheel</figcaption>
+						</td>
+					</tr>
+				</table>
+			</div>
 
-		<h2>Task 6: "Level Sampling" with mipmaps for texture mapping</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+			<h2>Task 5: "Pixel sampling" for texture mapping</h2>
+			This is very similar to the previous rendering of triangles. Previously, the color of the triangle was directly given to us, while the color of the texture had to be found by ourselves. sample_nearest outputs the color of the texel closest to the pixel. sample_bilinear outputs the average color of the 4 texels closest to the pixel. sample_nearest will have a higher resolution, but the anti-aliasing and over-sample prevention capabilities are not as strong as bilinear.
+			<div style="display: flex; flex-direction: column; align-items: center;">
+				<table style="width: 100%; text-align: center; border-collapse: collapse;">
+					<tr>
+						<td style="text-align: center;">
+							<img src="task5_screenshot_near_1.png" width="400px" />
+							<figcaption>Nearest with Sample_rate = 1</figcaption>
+						</td>
+						<td style="text-align: center;">
+							<img src="task5_screenshot_near_16.png" width="400px" />
+							<figcaption>Nearest with Sample_rate = 16</figcaption>
+						</td>
+					</tr>
+					<tr>
+						<td style="text-align: center;">
+							<img src="task5_screenshot_bilinear_1.png" width="400px" />
+							<figcaption>Bilinear with Sample_rate = 1</figcaption>
+						</td>
+						<td style="text-align: center;">
+							<img src="task5_screenshot_bilinear_16.png" width="400px" />
+							<figcaption>Bilinear with Sample_rate = 16</figcaption>
+						</td>
+					</tr>
+				</table>
+			</div>
 
-		<h2>(Optional) Task 7: Extra Credit - Draw Something Creative!</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+			<h2>Task 6: "Level Sampling" with mipmaps for texture mapping</h2>
+			Mipmap is to divide the texture into different levels of textures first. When encountering the appropriate level, different textures are used to achieve better results. It can effectively prevent over sampling and ensure the resolution of the near part of the screen. It is also very simple to implement. For 0 level, just output 0level. For nearest, use the formula in the course to get d and then use the square root of d to judge the level. Bilinear is more complicated. I chose to find the color of the current required level through d first and then find the color in d+1level. Then, through the ratio obtained by \(d-level)\, the colors obtained from the two levels are added together to get the color to be output. Pixel sampling is slower but occupies less memory. It can achieve better anti-aliasing of graphics. Level sampling is faster but occupies more memory. It can better complete the anti-aliasing of textures but cannot optimize the aliasing of graphics. The number of samples per pixel will be very slow, and the memory usage also depends on the number of samples and other methods used at the same time. When the number of samples is high, it can achieve better anti-aliasing effect.
+			<div style="display: flex; flex-direction: column; align-items: center;">
+				<table style="width: 100%; text-align: center; border-collapse: collapse;">
+					<tr>
+						<td style="text-align: center;">
+							<img src="task6_screenshot_zn.png" width="400px" />
+							<figcaption>Zero and Nearest</figcaption>
+						</td>
+						<td style="text-align: center;">
+							<img src="task6_screenshot_zl.png" width="400px" />
+							<figcaption>Zero and Linear</figcaption>
+						</td>
+					</tr>
+					<tr>
+						<td style="text-align: center;">
+							<img src="task6_screenshot_nn.png" width="400px" />
+							<figcaption>Nearest and Nearest</figcaption>
+						</td>
+						<td style="text-align: center;">
+							<img src="task6_screenshot_nl.png" width="400px" />
+							<figcaption>Nearest and Linear</figcaption>
+						</td>
+					</tr>
+				</table>
+			</div>
 
-		<h2>Additional Notes (please remove)</h2>
-		<ul>
-			<li>You can also add code if you'd like as so: <code>code code code</code></li>
-			<li>If you'd like to add math equations, 
-				<ul>
-					<li>You can write inline equations like so: \( a^2 + b^2 = c^2 \)</li>
-					<li>You can write display equations like so: \[ a^2 + b^2 = c^2 \]</li>
-				</ul>
-			</li>
-		</ul>
+			<h2>(Optional) Task 7: Extra Credit - Draw Something Creative!</h2>
+			Nope.
 		</div>
 	</body>
 </html>
