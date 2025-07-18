@@ -32,7 +32,7 @@
 
 		<br>
 
-		Link to webpage: (TODO) <a href="https://cs184.eecs.berkeley.edu/sp25">cs184.eecs.berkeley.edu/sp25</a>
+		Link to webpage: <a href="https://lapluma430.github.io/cs184hw_website/">cs184hw_website</a>
 
 		<br>
 		
@@ -61,9 +61,9 @@
 		</ul>
 
 		<p>These techniques provide the foundation for modern modeling and animation systems, 
-		enabling geometric transformations, motion path generation, etc.</p>
+		enabling geometric/topology transformations, motion path generation, etc.</p>
 
-		<p>An interesting thing I learned: I finally understood how half-edge works, as I saw
+		<p>An interesting thing I learned: I finally understood how half-edge works. Also I saw
 			 that working with lower-level structures required a lot of tedious work such as manually reassign edges,
 			  half-edges, and face, etc.</p>
 
@@ -204,7 +204,7 @@
 				<li>Implemented helper function: <code>getArea(FaceCIter f)</code>
 				to calculates triangular face area using cross product:
 					<br><code>Area = 0.5*||edge₁ × edge₂||</code>
-				</li>the edges are calcualted from the tree vertices of that face. 
+				</li>the edges are calculated from the tree vertices of that face. 
 				</ul>
 			</li>
 			
@@ -241,7 +241,7 @@
 			<li><b>Halfedges:</b> h0 (main), h1 (top-left), h2 (bottom-left), h3 (twin), h4 (bottom-right), h5 (top-right)</li>
 			</ul>
 		</li>
-		
+		<br>
 		<li><strong>Reassign attributes:</strong>
 			<ul>
 			<li>Update <code>next()</code> relationships</li>
@@ -280,7 +280,7 @@
 				<li><b>Halfedges:</b> h0 (main), h1, h2, h3 (twin), h4, h5</li>
 				</ul>
 			</li>
-			
+			<br>
 			<li><strong>Create new elements:</strong>
 				<ul>
 				<li>New vertex <b>m</b> at midpoint of v0 and v1</li>
@@ -289,7 +289,7 @@
 				<li>New halfedges h6-h11</li>
 				</ul>
 			</li>
-			
+			<br>
 			<li><strong>Reassign all attributes:</strong>
 				<ul>
 				<li>Update connections for both existing and new elements</li>
@@ -301,6 +301,16 @@
 		<p><strong>Implementation Tip:</strong> Again, similar to edge flipping, a visualization of pre- and post-split diagrams help a lot during reassignment.</p>
 		<div style="display: flex; flex-direction: column; align-items: center;">
 					<table style="width: 100%; text-align: center; border-collapse: collapse;">
+					 <tr>
+						<td style="text-align: center;">
+						<img src="noedgeflip.png" width="280px"/>
+						<figcaption>Before edge splits</figcaption>
+						</td>
+						<td style="text-align: center;">
+						<img src="t5_sp.png" width="300px"/>
+						<figcaption>After edge splits</figcaption>
+						</td>
+					</tr>
 					<tr>
 						<td style="text-align: center;">
 						<img src="noedgeflip.png" width="275px"/>
@@ -314,114 +324,364 @@
 					</table>
 				</div>
 
+		<br>
+		<h3>Extra Credit: Support Edge Splits for Boundary Edges</h3>
+		<p>
+		To add boundary handling for edge splits, we added 
+		an <code>if</code> condition that checks whether that edge lies 
+		on the boundary. The overall logic remains similar to regular 
+		edge splits.
+		</p>
+
+		<h4>Added Implementation:</h4>
+		<ol>
+		<li>
+			Added an <code>if</code> condition: checks if either the halfedge 
+			or its twin is a boundary using the <code>isBoundary()</code> function.
+		</li>
+		<br>
+		<li>
+			If the twin is the actual boundary halfedge, we reassign it
+			 to <code>h</code> for consistency.
+		</li>
+		<br>
+		<li>
+			Identify the relevant mesh elements that will be affected:
+			<ul>
+			<li><code>v0</code> and <code>v1</code>: the vertices of the 
+				edge being split</li>
+			<li><code>v2</code>: the third vertex of the non-boundary triangle</li>
+			<li><code>F0</code>: the non-boundary face that we are splitting</li>
+			<li>Associated halfedges</li>
+			</ul>
+		</li>
+		<br>
+		<li>
+			Create new elements during the split:
+			<ul>
+			<li>A new vertex <code>m</code> at the midpoint of the edge
+				 between <code>v0</code> and <code>v1</code></li>
+			<li>Create 1 new face (resulted from splitting)</li>
+			<li>Introduce new edge to connect <code>m</code> to <code>v2</code> </li>
+			<li>Construct new halfedges</li>
+			</ul>
+		</li>
+		<br>
+		<li>
+			Update the connectivity of all affected elements.
+		</li>
+		</ol>
+		<div style="display: flex; flex-direction: column; align-items: center;">
+					<table style="width: 100%; text-align: center; border-collapse: collapse;">
+					<tr>
+						<td style="text-align: center;">
+						<img src="t5_ec.png" width="300px"/>
+						<figcaption>Boundary before edge split</figcaption>
+						</td>
+						<td style="text-align: center;">
+						<img src="t5_ec_s.png" width="300px"/>
+						<figcaption>Boundary after edge split</figcaption>
+						</td>
+					</tr>
+					</table>
+		</div>
+		<br>
+
+
 
 		<h3>Part 6: Loop subdivision for mesh upsampling</h3>
-			<p>Loop subdivision refines meshes by smoothing vertex positions through weighted averaging and splitting each triangle into four smaller triangles.</p>
+			<p>Loop subdivision increases the number of triangles in
+				 the mesh. For a non-boundary face, each triangle is split into 
+				 four sub-triangles.</p>
 
-			<h3>Implementation Steps</h3>
+			<h4>Implementation:</h4>
 
-			<ol>
-			<li>
-				<strong>Compute Updated Positions for Original Vertices</strong>
-				<p>For each original vertex, calculate a smoothed position using neighbor weighting:</p>
-				<div style="text-align: center; margin: 10px 0;">
-				<code>newPosition = (1 - n·u)·position + u·∑(neighbor positions)</code>
-				</div>
-				<ul>
-				<li><b>n:</b> Number of adjacent vertices</li>
-				<li><b>u:</b> Weight value (3/16 for n=3, otherwise 3/(8n))</li>
+			<h4>1. Smooth the Mesh by Updating Vertex Positions</h4>
+			<p>
+					For each original vertex, we traverse all its 
+					neighboring vertices using halfedge traversal to 
+					compute a smoothed position. Using the formula:
+			</p>
+			<pre>newPosition = (1 − n ⋅ u) ⋅ position + u ⋅ ∑(neighbor positions)</pre>
+			<ul>
+					<li>n: Number of adjacent vertices</li>
+					<li>u: Weight factor (use 3/16 if n = 3, otherwise use 3/(8n))</li>
 				</ul>
-				<p><strong>Boundary Handling (Extra Credit):</strong></p>
-				<p>For boundary vertices, use modified weighting:</p>
-				<div style="text-align: center; margin: 10px 0;">
-				<code>newPosition = 0.75·position + 0.125·(left_neighbor + right_neighbor)</code>
-				</div>
-			</li>
 
-			<li>
-				<strong>Compute New Edge Midpoint Positions</strong>
-				<p>Calculate positions for new edge vertices:</p>
-				<div style="text-align: center; margin: 10px 0;">
-				<code>newPosition = (3/8)(A + B) + (1/8)(C + D)</code>
-				</div>
+				<h4>2. Compute New Edge Midpoint Positions</h4>
+				<p>
+					Iterate through each edge using <code>EdgeIter</code>. For each edge, compute the
+					 new midpoint position as:
+				</p>
+				<pre>newPosition = (3/8)(A + B) + (1/8)(C + D)</pre>
 				<ul>
-				<li><b>A, B:</b> Edge endpoints</li>
-				<li><b>C, D:</b> Opposite vertices of adjacent triangles</li>
+					<li>A, B: Endpoints of the edge</li>
+					<li>C, D: Opposite vertices of adjacent triangles</li>
 				</ul>
-			</li>
 
-			<li>
-				<strong>Split Every Edge</strong>
+				<h4>3. Split Every Edge</h4>
+				<p>
+					Since the behavior of <code>EdgeIter</code> during mesh 
+					mutation may be unstable, we first store all original edges in a 
+					list and iterate through it. For each edge:
+				</p>
 				<ul>
-				<li>Store original edges in a temporary list to prevent modification during iteration</li>
-				<li>Split each edge, creating a new vertex at its midpoint</li>
-				<li>Mark newly created edges with <code>isNew = true</code></li>
+					<li>Call the <code>SplitEdge</code> function to create a new vertex 
+						at the edge's midpoint.</li>
+					<li>Assign the precomputed position (stored in <code>e-&gt;edge</code>) to 
+						the newly created vertex.</li>
+					<li>Mark new edges with <code>isNew = true</code> to identify them 
+						for the edgeflip stage.</li>
 				</ul>
-			</li>
 
-			<li>
-				<strong>Flip New Edges Between Old & New Vertices</strong>
+				<h4>4. Flip New Edges</h4>
+				<p>
+					Iterate through all edges. For any edge that is:
+				</p>
 				<ul>
-				<li>Flip edges connecting original vertices to newly created vertices</li>
-				<li>Ensures even vertex distribution and prevents "pinching" artifacts</li>
+					<li>New (<code>isNew = true</code>)</li>
+					<li>Connecting an original vertex and a newly created vertex</li>
 				</ul>
-			</li>
+				<p>
+					Apply edge flipping to improve mesh regularity.
+				</p>
 
-			<li>
-				<strong>Update Final Vertex Positions</strong>
-				<p>Transfer all calculated <code>newPosition</code> values to final <code>position</code> attributes</p>
-			</li>
-			</ol>
+				<h4>5. Update Final Vertex Positions</h4>
+				<p>Copy <code>newPosition</code> to <code>position</code> for all 
+					vertices</p>
 
-
-
-		<h2>(Optional) Section III: Potential Extra Credit - Art Competition: Model something Creative</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-
-
-		<figure>
-			<img src="teapot.png" alt="Teapot" style="width:50%"/>
-			<figcaption>You can add images with captions!</figcaption>
-		</figure>
-		
-			<p>Here is an example 2x2 gridlike structure using an HTML table. Each <b>tr</b> is a row and each <b>td</b> is a column in that row. You might find this useful for framing and showing your result images in an organized fashion.</p>
-		<div style="display: flex; flex-direction: column; align-items: center;">
+						
+			<div style="display: flex; flex-direction: column; align-items: center;">
 			<table style="width: 100%; text-align: center; border-collapse: collapse;">
 			  <tr>
 				<td style="text-align: center;">
-				  <img src="noedgeflip.png" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
+				  <img src="sq.png" width="400px"/>
+				  <figcaption>Initial mesh before subdivision (Level 0)</figcaption>
 				</td>
 				<td style="text-align: center;">
-				  <img src="teapot.png" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
+				  <img src="sp_sub_1.png" width="380px"/>
+				  <figcaption>After one subdivision iteration (Level 1)</figcaption>
 				</td>
 			  </tr>
 			  <tr>
 				<td style="text-align: center;">
-				  <img src="teapot.png" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
+				  <img src="sq_sub_2.png" width="400px"/>
+				  <figcaption>After two subdivision iterations (Level 2)</figcaption>
 				</td>
 				<td style="text-align: center;">
-				  <img src="teapot.png" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
+				  <img src="sq_sub_3.png" width="400px"/>
+				  <figcaption>After three subdivision iterations (Level 3)</figcaption>
+				</td>
+			  </tr>
+			</table>
+		</div>
+			<br>
+		<h3>Observations</h3>
+
+		<h4>Smoothing of Sharp Edges</h4>
+		<p>
+		After applying loop subdivision, sharp edges are noticeably smoothed,
+		 and sharp corners become increasingly rounded with each iteration. 
+		 This is because old vertex positions are recalculated during 
+		 Step 1, averageing each old vertex with its 
+		 surronding neighbors. After 3–4 iterations, a cube begin 
+		 to resemble a smooth, sphere-like object.
+		</p>
+		<p>
+		To reduce this smoothing effect and preserve the 
+		original sharp edges, we can pre-split the shape’s edges. 
+		Since the new position of each original vertex depends on 
+		its surrounding vertices, increasing the density of vertices 
+		near sharp edges reduces the influence of smoothing. As a result, the 
+		vertex will not deviate too much from its original position. 
+		</p>
+			<div style="display: flex; flex-direction: column; align-items: center;">
+					<table style="width: 100%; text-align: center; border-collapse: collapse;">
+					<tr>
+						<td style="text-align: center;">
+						<img src="t6_e1.png" width="250px"/>
+						<figcaption>Boundary after edge split (pre-subdivision)</figcaption>
+						</td>
+						<td style="text-align: center;">
+						<img src="t6_e2.png" width="250px"/>
+						<figcaption>After edge split and one subdivision (Level 1)</figcaption>
+						</td>
+						<td style="text-align: center;">
+						<img src="t6_e3.png" width="250px"/>
+						<figcaption>After edge split and two subdivisions (Level 2)</figcaption>
+						</td>
+					</tr>
+					</table>
+		</div>
+
+		<h3>Asymmetry</h3>
+		<p>
+		The asymmetry that arises after loop subdivision is a
+		 result of the cube’s initial topology. Each face is 
+		 originally split into two triangles diagonally. During subdivision,
+		  new triangles are added along this diagonal, resulting in
+		   skewed and uneven triangle that break the symmetry of the mesh.
+		</p>
+		<p>
+		To reduce this asymmetry, we can pre-process the cube by split 
+		each diagonal edge on every cube face so that each face is 
+		composed of four symmetric triangles.
+		</p>
+		<div style="display: flex; flex-direction: column; align-items: center;">
+			<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			  <tr>
+				<td style="text-align: center;">
+				  <img src="t6_a0.png" width="235px"/>
+				  <figcaption>Original topology before subdivision</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="sp_sub_1.png" width="200px"/>
+				  <figcaption>Original topology after one subdivision</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="sq_sub_2.png" width="200px"/>
+				  <figcaption>Original topology after two subdivisions</figcaption>
+				</td>
+			  </tr>
+			  <tr>
+				<td style="text-align: center;">
+				  <img src="t6_a1.png" width="235px"/>
+				  <figcaption>Preprocessed topology before subdivision</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="t6_a2.png" width="235px"/>
+				  <figcaption>Preprocessed topology after one subdivision</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="t6_a3.png" width="235px"/>
+				  <figcaption>Preprocessed topology after two subdivisions</figcaption>
+				</td>
+			  </tr>
+			</table>
+		</div>
+		<br>
+		<h3>Extra Credit: Boundary Handling for Loop Subdivision</h3>
+
+		<p>For vertices and edges on mesh boundaries, we use a
+			different weighting schemes. Modifications:</p>
+
+		<h4>Step 1: Boundary Vertex Update</h4>
+		<p>For old vertices on boundaries, its new position is calculated by:</p>
+		<code>newPosition = 0.75 * position + 0.125 * (left_neighbor + right_neighbor)</code>
+		<p>To avoid overly smoothing the boundary vertices, we give 
+			their original position a higher weight.
+		</p>
+
+		<h4>Step 2: Boundary Edge Update</h4>
+		<p>For edges on boundaries, the new vertex's position is calculated by:</p>
+		<code>newPosition = 0.5 * (A + B)</code>
+		<ul>
+		<li>Simple average of endpoint positions </li>
+		<li>Different from interior edges which use 3/8 + 1/8 weighting from 4 surrounding vertices</li>
+		</ul>
+
+		<p>All other steps (edge splitting, flipping, etc.) remain 
+			the same.</p>
+
+		<div style="display: flex; flex-direction: column; align-items: center;">
+					<table style="width: 100%; text-align: center; border-collapse: collapse;">
+					<tr>
+						<td style="text-align: center;">
+						<img src="t6_ec_b2.png" width="250px"/>
+						<figcaption>Subdivision without boundaries handeling</figcaption>
+						</td>
+						<td style="text-align: center;">
+						<img src="t6_ec_b1.png" width="250px"/>
+						<figcaption>Subdivision with boundaries handeling</figcaption>
+						</td>
+					
+					</tr>
+					</table>
+		</div>
+
+		<h3>Extra Credit: Root-3 Subdivision</h3>
+
+		<p>
+		Instead of splitting edges, Root-3 subdivision splits faces
+		 directly and smooths the surface through recursive 
+		 centroid insertion and flipping.
+		</p>
+
+		<h4>Implementation:</h4>
+
+		<h4>1. Insert Centroid Vertex for Each Face</h4>
+		<ul>
+		<li>Compute the centroid by averaging its three vertex positions</li>
+		<li>Create a new vertex at this centroid position</li>
+		<li>Store the face–vertex pair for later use</li>
+		</ul>
+
+		<h4>2. Split Each Face into 3 New Faces</h4>
+		<ul>
+		<li>For each original face, connect its centroid to its 
+			three original vertices</li>
+		<li>This splits the face into three smaller triangular faces</li>
+		<li>Implemented by calling the helper function <code>addFace()</code>, creating:
+			<ul>
+			<li>3 new edges</li>
+			<li>2 new faces</li>
+			<li>Updated halfedge connectivity</li>
+			</ul>
+		</li>
+		</ul>
+
+		<h4>3. Smooth Old Vertices</h4>
+		<ul>
+		<li>
+			<strong>For non-boundary vertices:</strong>
+			<ul>
+				<li>Calculate a smoothing weight <code>beta</code> based on vertex valence and update positions using a 
+				weighted average of neighbors</li>
+			</ul>
+		</li>
+		<li>
+			<strong>For boundary vertices:</strong><br>
+			<ul>
+			<li>On even iterations: Split the boundary edge and update position using <code>0.125 * (neighbor_sum + 6 * current_pos)</code></li>
+			<li>On odd iterations: Leave position unchanged to avoid over-smoothing boundaries</li>
+			</ul>
+		</li>
+		</ul>
+
+		<h4>4. Flip Edges</h4>
+		<ul>
+		<li>Flip edges that connect two old vertices</li>
+		</ul>
+
+		<h4>5. Update Vertex Positions and Flags</h4>
+		<ul>
+		<li>Copy updated positions back into each vertex</li>
+		<li>Update <code>isNew</code> status for next subdivision</li>
+		</ul>
+
+			<div style="display: flex; flex-direction: column; align-items: center;">
+			<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			  <tr>
+				<td style="text-align: center;">
+				  <img src="t6_f1.png" width="280px"/>
+				  <figcaption>Initial mesh before subdivision (Level 0)</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="t6_f2.png" width="280px"/>
+				  <figcaption>After one Root-3 subdivision iteration (Level 1)</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="t6_f3.png" width="280px"/>
+				  <figcaption>After two Root-3 subdivision iteration (Level 2)</figcaption>
 				</td>
 			  </tr>
 			</table>
 		</div>
 
 
+		<!-- <h2>(Optional) Section III: Potential Extra Credit - Art Competition: Model something Creative</h2>
+		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. -->
 
-		<h2>Additional Notes (please remove)</h2>
-		<ul>
-			<li>You can also add code if you'd like as so: <code>code code code</code></li>
-			<li>If you'd like to add math equations, 
-				<ul>
-					<li>You can write inline equations like so: \( a^2 + b^2 = c^2 \)</li>
-					<li>You can write display equations like so: \[ a^2 + b^2 = c^2 \]</li>
-				</ul>
-			</li>
-		</ul>
 		</div>
 	</body>
 </html>
