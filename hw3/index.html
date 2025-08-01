@@ -216,8 +216,8 @@
 			<li>For each axis (x/y/z):
 				<ul>
 					<li>Calculate t_enter and t_exit using:
-						<pre>t_enter = (min[axis] - ray.o[axis]) / ray.d[axis]
-		t_exit = (max[axis] - ray.o[axis]) / ray.d[axis]</pre>
+						<pre>t_enter = (min[axis] - ray.o[axis]) / ray.d[axis]</pre>
+							<pre>t_exit = (max[axis] - ray.o[axis]) / ray.d[axis]</pre>
 					</li>
 					<li>Swap if t_enter > t_exit</li>
 				</ul>
@@ -330,12 +330,22 @@ These results shows that BVH performs especially well in scenes with high comple
 			<table style="width: 100%; text-align: center; border-collapse: collapse;">
 			  <tr>
 				<td style="text-align: center;">
-				  <img src="part3/bunny_64_32.png" width="300px"/>
-				  <figcaption>CBbunny.dae with importance sampling</figcaption>
+				  <img src="part3/bunny_I_16_8.png" width="300px"/>
+				  <figcaption>importance sampling -s=16, -l=8</figcaption>
 				</td>
 				<td style="text-align: center;">
-				  <img src="part3/CBbunny_H_64_32_2.png" width="300px"/>
-				  <figcaption>CBbunny.dae with hemisphere stampling</figcaption>
+				  <img src="part3/bunny_16_8_hem.png" width="300px"/>
+				  <figcaption>hemisphere sampling -s=16, -l=8</figcaption>
+				</td>
+				</tr>
+				<tr>
+				<td style="text-align: center;">
+				  <img src="part3/bunny_64_32.png" width="300px"/>
+				  <figcaption>importance sampling -s=64, -l=32</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="part3/CBbunny_H_64_32.png" width="300px"/>
+				  <figcaption>hemisphere stampling -s=64, -l=32</figcaption>
 				</td>
 			  </tr>
 			</table>
@@ -369,29 +379,298 @@ These results shows that BVH performs especially well in scenes with high comple
 			  </tr>
 			</table>
 		</div>
-		
+		<p>The importance sampling version produces significantly less noise when using the same number 
+			of samples. Hemisphere sampling tends to produce noisier images since many of the samples miss
+			 the light entirely, while importance sampling ensures every sample makes a meaningful 
+			 contribution to the final result (L_out). In the CBbunny example, while the noise for 
+			 hemisphere sampling is uniformly distributed, the noise for importance sampling is mostly 
+			 concentrated in the shadow areas. This occurs because importance sampling focuses samples 
+			 on light sources, making well-lit regions converge faster while shadow regions remain noisier.
+			  Hence, importance sampling is generally better and 
+			 more efficient for direct lighting calculations.</p>
 		<br>
 
 		
 		<h2>Part 4: Global Illumination</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+			<h3>BSDF Sampling</h3>
+			<p>
+				The <code>bsdf->get_sample()</code> function:
+			</p>
+			<ul>
+				<li>Randomly picks a "likely" light direction based on the density function</li>
+				<li>Computes its PDF (probability density function)</li>
+				<li>For diffuse objects, <code>f(wi, wo)</code> always returns a constant: <code>albedo/π</code></li>
+				<li>This is because diffuse objects reflect the same amount of light regardless of angles</li>
+			</ul>
+
+			<h3>Global Illumination Implementation</h3>
+			<p>
+				Global illumination simulates how light bounces multiple times between surfaces to produce realistic indirect lighting. 
+				Implementation is similar to one-bounce but with recursion:
+			</p>
+			<ol>
+				<li>
+				<strong>Initial setup</strong> (<code>hit_p</code>, <code>w_out</code> etc.) is the same.
+				However we do set <code>L_out</code> to <code>one_bounce_radiance</code> (direct lighting contribution) at current intersection
+				</li>
+				<li>
+				Track ray depth using <code>r.depth</code> variable and terminate recursion if ray exceeds <code>max_ray_depth</code>
+				</li>
+				<li>
+				Otherwise, call <code>isect.bsdf->sample_f()</code> to get possible light direction from diffuse BSDF
+				</li>
+				<li>
+				Generate a ray <code>next_ray</code> from current intersection with the sampled direction,
+				and increment ray depth by 1
+				</li>
+			</ol>
+
+			<h4>Russian Roulette Termination</h4>
+			<p>
+				Added because <code>max_ray_depth</code> alone doesn't yield realistic models:
+			</p>
+			<ul>
+				<li>The rule is: always trace at least one indirect bounce when enabled</li>
+				<li>Then use 30% termination probability for subsequent bounces</li>
+				<li>Enter recursion only if either:
+				<ul>
+					<li>This is the first bounce, OR We hit the 70% probability to continue</li>
+				</ul>
+				</li>
+			</ul>
+
+			<h4>Recursive Call</h4>
+			<p>
+				Call <code>at_least_one_bounce_radiance</code> to:
+			</p>
+			<ul>
+				<li>Find light contribution from <code>next_ray</code></li>
+				<li>Weight the contribution appropriately</li>
+			</ul>
+
+			<h4>Result Accumulation</h4>
+			<p>
+				Two modes:
+			</p>
+			<ul>
+				<li>If <code>isAccumBounces</code> is true: accumulate all bounces</li>
+				<li>Otherwise: isolate specific bounce level (mostly for debugging)</li>
+			</ul>
+			<div style="display: flex; flex-direction: column; align-items: center;">
+
+			<table style="width: 100%; text-align: center; border-collapse: collapse;">
+				<tr>
+				<td style="text-align: center;">
+				  <img src="part5/CBspheres_lambertian_indirect.png" width="300px"/>
+				  <figcaption>indirect -s=2048</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="part5/CBsphere_lamb_t4_direct.png" width="300px"/>
+				  <figcaption>direct  -s=2048</figcaption>
+				</td>
+			</table>
+			</div>
+			<br>
+			<div style="display: flex; flex-direction: column; align-items: center;">
+			<table style="width: 100%; text-align: center; border-collapse: collapse;">
+				<p>isAccumBounces = false: </p>
+				<tr>
+				<td style="text-align: center;">
+				  <img src="part5/m0.png" width="110px"/>
+				  <figcaption>m = 0 </figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="part5/m1.png" width="110px"/>
+				  <figcaption>m = 1</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="part5/m2.png" width="110px"/>
+				  <figcaption>m = 2</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="part5/m3.png" width="110px"/>
+				  <figcaption>m = 3</figcaption>
+				</td><td style="text-align: center;">
+				  <img src="part5/m4.png" width="110px"/>
+				  <figcaption>m = 4</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="part5/m5.png" width="110px"/>
+				  <figcaption>m = 5</figcaption>
+				</td>
+			</table>
+			</div>	<div style="display: flex; flex-direction: column; align-items: center;">
+			<table style="width: 100%; text-align: center; border-collapse: collapse;">
+				<p>isAccumBounces = true: </p>
+				<tr>
+				<td style="text-align: center;">
+				  <img src="part5/m0t.png" width="110px"/>
+				  <figcaption>m = 0 </figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="part5/m1t.png" width="110px"/>
+				  <figcaption>m = 1</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="part5/m2t.png" width="110px"/>
+				  <figcaption>m = 2</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="part5/m3t.png" width="110px"/>
+				  <figcaption>m = 3</figcaption>
+				</td><td style="text-align: center;">
+				  <img src="part5/m4t.png" width="110px"/>
+				  <figcaption>m = 4</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="part5/m5t.png" width="110px"/>
+				  <figcaption>m = 5</figcaption>
+				</td>
+			</table>
+			</div>
+			<p>When isAccumBounces is enabled, the rendered photo accumulates light
+				 contributions from all previous bounces, which brightening 
+				 the scene (especially in shadowed), which results in a more physically accurate, 
+				 globally illuminated image. As max_ray_depth increases, each additional 
+				 bounce refines indirect lighting: lower depths (1–2) captures soft shadows and color bleeding, 
+				 while higher depths (3–5) subtly brighten the object. Without accumulation (isAccumBounces=false), 
+				 each bounce is isolated, revealing how indirect light are adding up.</p>
+			<div style="display: flex; flex-direction: column; align-items: center;">
+			<table style="width: 100%; text-align: center; border-collapse: collapse;">
+				<p>With Russian Roulette: </p>
+				<tr>
+				<td style="text-align: center;">
+				  <img src="part5/m0r.png" width="110px"/>
+				  <figcaption>m = 0 </figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="part5/m1r.png" width="110px"/>
+				  <figcaption>m = 1</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="part5/m2r.png" width="110px"/>
+				  <figcaption>m = 2</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="part5/m3r.png" width="110px"/>
+				  <figcaption>m = 3</figcaption>
+				</td><td style="text-align: center;">
+				  <img src="part5/m4r.png" width="110px"/>
+				  <figcaption>m = 4</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="part5/m5r.png" width="110px"/>
+				  <figcaption>m = 5</figcaption>
+				</td>
+			</table>
+			</div>
+			<div style="display: flex; flex-direction: column; align-items: center;">
+			<table style="width: 100%; text-align: center; border-collapse: collapse;">
+				<p>Increase s: </p>
+				<tr>
+				<td style="text-align: center;">
+				  <img src="part5/s1.png" width="110px"/>
+				  <figcaption>s = 1 </figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="part5/s2.png" width="110px"/>
+				  <figcaption>s = 2</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="part5/s3.png" width="110px"/>
+				  <figcaption>s = 4</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="part5/s4.png" width="110px"/>
+				  <figcaption>s = 8</figcaption>
+				</td><td style="text-align: center;">
+				  <img src="part5/s5.png" width="110px"/>
+				  <figcaption>s = 16</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="part5/s6.png" width="110px"/>
+				  <figcaption>s = 64</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="part5/s7.png" width="110px"/>
+				  <figcaption>s = 1024</figcaption>
+				</td>
+			</table>
+			</div>
+
+		
+			
 
 		<h2>Part 5: Adaptive Sampling</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-
-		<h2>(Optional) Part 6: Extra Credit Opportunities</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-		
-		<h2>Additional Notes (please remove)</h2>
-		<ul>
-			<li>You can also add code if you'd like as so: <code>code code code</code></li>
-			<li>If you'd like to add math equations, 
+				<p>Traditional fixed-rate sampling applies the same number of samples to every pixel, which is inefficient because:</p>
 				<ul>
-					<li>You can write inline equations like so: \( a^2 + b^2 = c^2 \)</li>
-					<li>You can write display equations like so: \[ a^2 + b^2 = c^2 \]</li>
+				<li><strong>Simple Areas</strong>: Pixels in uniform regions (like flat walls) converge quickly with few samples</li>
+				<li><strong>Complex Areas</strong>: Pixels in regions with complex lighting (shadows, reflections) require many more samples to reduce noise</li>
 				</ul>
-			</li>
-		</ul>
+				<p>Adaptive sampling solves this inefficiency by dynamically adjusting sample counts per pixel using statistical analysis.</p>
+				<h3>Convergence Monitoring</h3>
+				<ul>
+				<li><code>s₁</code>: Cumulative sum of all sample illuminance values</li>
+				<li><code>s₂</code>: Cumulative sum of squared illuminance values</li>
+				<li>These running totals enable efficient variance calculation without storing individual samples</li>
+				<li>Uses the Central Limit Theorem with a 95% confidence interval to estimate stability</li>
+				</ul>
+			
+
+				<h3>Batch Processing Workflow</h3>
+				<h4>Per-Pixel Sampling</h4>
+				<ul>
+					<li>Take samples up to maximum limit</li>
+					<li>Check convergence only every <code>samplesPerBatch</code> and early termination when convergence detected</li>
+				</ul>
+				
+				<h4>Convergence Check</h4>
+				<ul>
+					<li>Compute statistics every batch:
+					<ul>
+						<li>Mean illuminance: μ = s₁/n</li>
+						<li>Variance: σ² = (s₂ - (s₁²/n))/(n-1)</li>
+					</ul>
+					</li>
+					<li>Stop when confidence interval (CI = 1.96√(σ²/n)) &lt; 5% of mean</li>
+				</ul>
+
+				<h4>Tracking Adjustments</h4>
+				<ul>
+					<li>Record actual samples used (<var>s</var>) in <code>sampleCountBuffer</code></li>
+					<li>Final pixel color = ∑(sample_colors)/<var>s</var></li>
+				</ul>
+	
+			<div style="display: flex; flex-direction: column; align-items: center;">
+				<table style="width: 100%; text-align: center; border-collapse: collapse;">
+					<tr>
+					<td style="text-align: center;">
+					<img src="part5/bunny_t51.png" width="300px"/>
+					<figcaption>bunny.png -s=2048</figcaption>
+					</td>
+					<td style="text-align: center;">
+					<img src="part5/bunny_t52.png" width="300px"/>
+					<figcaption>bunny_rate -s=2048</figcaption>
+					</td>
+				<tr>
+					<td style="text-align: center;">
+					<img src="part5/CBsphere_lamb_t4_1.png" width="300px"/>
+					<figcaption>CBsphere -s=2048</figcaption>
+					</td>
+					<td style="text-align: center;">
+					<img src="part5/CBsphere_lamb_t4_rate1.png" width="300px"/>
+					<figcaption>CBsphere_rate -s=2048</figcaption>
+					</td>
+				</tr>
+				</table>
+			</div>
+				</div>
+			<!-- <h2>(Optional) Part 6: Extra Credit Opportunities</h2>
+			Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat 
+			non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.-->
+		</div> 
+		<h3>AI Usage:</h3>
+		<p>I used AI to translate my write-up into HTML and assist with debugging tasks</p>
 		</div>
 	</body>
 </html>
