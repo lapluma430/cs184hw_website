@@ -632,7 +632,7 @@ These results shows that BVH performs especially well in scenes with high comple
 						<li>Variance: σ² = (s₂ - (s₁²/n))/(n-1)</li>
 					</ul>
 					</li>
-					<li>Stop when confidence interval (CI = 1.96√(σ²/n)) &lt; 5% of mean</li>
+					<li>Stop when the variable we defined I (I = 1.96√(σ²/n)) less or equal to the maxTolerance * mean (which means our sampling has converged to within the defined 95% confidence interval)</li>
 				</ul>
 
 				<h4>Tracking Adjustments</h4>
