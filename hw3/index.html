@@ -28,60 +28,351 @@
 	<body>
 		<div class="container">
 		<h1>CS184/284A Spring 2025 Homework 3 Write-Up</h1>
-		<div style="text-align: center;">Names: </div>
+		<div style="text-align: center;">Names: Kunhong Lyu, Isabella Hu </div>
 
 		<br>
 
-		Link to webpage: (TODO) <a href="https://cs184.eecs.berkeley.edu/sp25">cs184.eecs.berkeley.edu/sp25</a>
-		Link to GitHub repository: (TODO) <a href="https://cs184.eecs.berkeley.edu/sp25">cs184.eecs.berkeley.edu/sp25</a>
+		Link to webpage: <a href="https://lapluma430.github.io/cs184hw_website/">Isabella Hu and Kunhong Lyu's HW website</a>
+
+		<br>
 		
-		<figure>
-			<img src="cornell.png" alt="Cornell Boxes with Bunnies" style="width:70%"/>
-			<figcaption>You can add images with captions!</figcaption>
-		</figure>
+		Link to GitHub repository: <a href="https://github.com/cal-cs184/hw-pathtracer-updated-very-cooked.git">github.com/cal-cs184/hw-pathtracer-updated-very-cooked.git</a>
 
 		<!--
 		We've already added one heading per part, to make your write-up as navigable when grading. Please fit your write-up within these sections!
 		-->
 
 		<h2>Overview</h2>
-		Give a high-level overview of what you implemented in this homework. Think about what you've built as a whole. Share your thoughts on what interesting things you've learned from completing the homework.
-
+		<p>
+			In this assignment, we implemented a physically-based renderer using path tracing to simulate realistic light interactions in 3D scenes. The system works by:
+		</p>
+		<ul>
+			<li>Generating camera rays and computing object intersections (accelerated by BVH spatial partitioning)</li>
+			<li>Estimating direct lighting through uniform and importance sampling</li>
+			<li>Simulating global illumination effects (soft shadows, color bleeding, reflections) using path tracing with Russian Roulette termination</li>
+			<li>Optimizing rendering through adaptive sampling to reduce noise</li>
+		</ul>
+		<p>
+			This rendering technique is fundamental to film and game production pipelines. One particularly interesting 
+			insight was seeing how mathematical formulas combine together to produce realistic images.
+		</p>
 		<h2>Part 1: Ray Generation and Scene Intersection</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
-		<p>Here is an example 2x2 gridlike structure using an HTML table. Each <b>tr</b> is a row and each <b>td</b> is a column in that row. You might find this useful for framing and showing your result images in an organized fashion.</p>
+		<h3>Ray Generation</h3>
+		<p>
+			The ray generation is implemented in <code>generate_ray</code>, which sents an initial ray from the sampling point 
+			on the camera plane to its corresponding position at the image(sensor) plane. 
+		<ol>
+			<li><strong>FOV Conversion</strong>:
+				<ul>
+					<li>Calculate sensor plane dimensions using the hFov and 
+						vFov and using a pinhole camera model with the sensor plane placed 1 
+						unit away from the camera origin: </li>
+					<li><code>sensorWidth = 2 * tan(hFov/2)</code></li>
+					<li><code>sensorHeight = 2 * tan(vFov/2)</code></li>
+				</ul>
+				( tan(vFov/2) = opposite/adjacent, since adjacent is the distance to the sensor plane = 1,  we can find the length of the opposite edge which is the sensor dimensions)
+			</li>
+			<li><strong>Coordinate Mapping</strong>: Transform pixel coordinates (x,y) to sensor plane positions</li>
+			<li><strong>Ray Creation</strong>: Convert position to world space coordinate using <code>c2w</code> matrix and generate ray through that point</li>
+		</ol>
+
+		<p>
+			In <code>raytrace_pixel</code>, we:
+		</p>
+		<ul>
+			<li>Generate <code>ns_aa</code> rays per pixel by calling camera-> generate_ray for each normalized sample point to sent initial ray</li>
+			<li>Call <code>est_radiance_global_illumination()</code> for each ray to calculate the light contribution</li>
+			<li>Average results for final pixel color and  set it to sampleBuffer.</li>
+		</ul>
+
 		<div style="display: flex; flex-direction: column; align-items: center;">
 			<table style="width: 100%; text-align: center; border-collapse: collapse;">
 			  <tr>
 				<td style="text-align: center;">
-				  <img src="cornell.png" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
+				  <img src="banana.png" width="250px"/>
+				  <figcaption>banana.dae after task 2</figcaption>
 				</td>
 				<td style="text-align: center;">
-				  <img src="cornell.png" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
+				  <img src="CBempty.png" width="250px"/>
+				  <figcaption>CBempty.dae after task 2</figcaption>
 				</td>
 			  </tr>
+			</table>
+		</div>
+		<h3>Triangle Intersection</h3>
+		<p>
+			Both the <code>has_intersection</code> and <code> intersect</code> function are implemented using the Möller-Trumbore algorithm (to find Barycentric coordinate):
+		</p>
+		<pre>
+		Ray equation: O + tD = (1-u-v)P0 + uP1 + vP2
+		Solved using:
+		t = (Q • E2) / (D • E1)
+		u = (P • T) / (D • E1)
+		v = (Q • D) / (D • E1)
+		Where:
+		E1 = P1-P0, E2 = P2-P0
+		T = O - P0
+		P = D × E2
+		Q = T × E1
+		</pre>
+		<p>check if all the coefficient <code>u, v, (1-u-v)</code> are between 0-1, if so, the point is within the triangle</p>
+		<p>
+			Key differences between functions:
+		</p>
+		<ul>
+			<li><code>has_intersection</code>: Returns true/false for hit detection</li>
+			<li><code>intersect</code>: Updates <code>Intersection</code> struct with hit details (time, normal, material, primitive)</li>
+		</ul>
+		<p>Some images with normal shading for small .dae files:</p>
+		<div style="display: flex; flex-direction: column; align-items: center;">
+			<table style="width: 100%; text-align: center; border-collapse: collapse;">
 			  <tr>
 				<td style="text-align: center;">
-				  <img src="cornell.png" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
+				  <img src="CBcoil.png" width="250px"/>
+				  <figcaption>CBcoil.dae (1032KB)</figcaption>
 				</td>
 				<td style="text-align: center;">
-				  <img src="cornell.png" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
+				  <img src="CBspheres.png" width="250px"/>
+				  <figcaption>CBspheres.dae (27KB)</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="CBemptyw.png" width="250px"/>
+				  <figcaption>CBempty.dae (23KB)</figcaption>
+				</td>
+			  </tr>
+			</table>
+		</div>
+
+		<br>
+
+		
+		<h2>Bounding Volume Hierarchy</h2>
+		<p>
+			I implemented the BVH recursively by partitioning the primitive top down into a binary tree:
+		</p>
+		<ol>
+			<li><strong>Compute Bounding Box</strong>:
+				<ul>
+					<li>For each node, create a bounding box (bbox)</li>
+					<li>Expand it to enclose all primitives in range [start, end)</li>
+				</ul>
+			</li>
+			
+			<li><strong>Leaf Node Check</strong>:
+				<ul>
+					<li>If number of primitives ≤ max_leaf_size (we reach the max size), then we 
+					store all primitives in node (no further splitting)</li>
+				</ul>
+			</li>
+			
+			<li><strong>Splitting Heuristic</strong>:
+				<ul>
+					<li>Split on longest axis at midpoint</li>
+					<li>To find the longest axis of the boundng box, we calculate diagonal vector using 
+						bbox.max - bbox.min, and find axis with largest span (x/y/z)</li>
+					<li>Calculate midpoint index</li>
+					<li>Use nth_element to partition primitives based on centroid position with midpoint in the correct position</li>
+					<li>Construct new bvh using the construct_bvh and on each of the partitions</li>
+				</ul>
+			</li>
+		</ol>
+
+		<h3>Intersection Functions</h3>
+		<p>For the BVHAccel class, we also have the has_intersection (for early termination) and intersect (closest hit) method:</p>
+
+		<p>We implemnted both use recursive approach:</p>
+		<ol>
+			<li>If ray doesn't intersect node's bbox → return false (ray going through the empty space)</li>
+			<li>If ray intersects bbox:
+				<ul>
+					<li><strong>Leaf node</strong>:
+						<ul>
+							<li>Iterate through all primitives</li>
+							<li>Check intersection using primitive's methods</li>
+							<li>For <em>intersect()</em> function specifically:
+								<ul>
+									<li>If local_isect occurs before current intersection</li>
+									<li>Update current intersection (i) to local_isect</li>
+									<!--  We still need to check other primitives because:
+										1. Transparent objects would need secondary intersections
+										2. Earlier hits might have higher transparency -->
+								</ul>
+							</li>
+						</ul>
+					</li>
+					<li><strong>Non-leaf node</strong>:
+						<ul>
+							<li>Recursively check left and right children</li>
+						</ul>
+					</li>
+				</ul>
+			</li>
+		</ol>
+
+		<h3>BBox Intersection</h3>
+		<p>This function is for when checking of ray intersect with the bbox, implementation uses lecture's box intersection method:</p>
+		<ul>
+			<li>For each axis (x/y/z):
+				<ul>
+					<li>Calculate t_enter and t_exit using:
+						<pre>t_enter = (min[axis] - ray.o[axis]) / ray.d[axis]
+		t_exit = (max[axis] - ray.o[axis]) / ray.d[axis]</pre>
+					</li>
+					<li>Swap if t_enter > t_exit</li>
+				</ul>
+			</li>
+			<li>Final t_enter = max(t_enter_x, t_enter_y, t_enter_z)</li>
+			<li>Final t_exit = min(t_exit_x, t_exit_y, t_exit_z)</li>
+			<li>Intersection occurs if:
+				<ul>
+					<li>t_enter ≤ t_exit (ray spends time inside box)</li>
+					<li>t_exit ≥ ray.min_t AND t_enter ≤ ray.max_t</li>
+					<!-- AI Note: No intersection when t_enter > t_exit because:
+						- Means ray misses box in at least one axis
+						- Example: t_enter_x > t_exit_y → ray passes outside box in y-axis before entering x-axis -->
+				</ul>
+			</li>
+			<li>Update t0/t1 to [t_enter, t_exit] if intersection found</li>
+		</ul>
+		<p>Some images with normal shading using BVH acceleration for large .dae files: </p>
+			<div style="display: flex; flex-direction: column; align-items: center;">
+			<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			  <tr>
+				<td style="text-align: center;">
+				  <img src="CBdragon_int.png" width="250px"/>
+				</td>
+				<td style="text-align: center;">
+				  <img src="CBlucyIntersection.png" width="250px"/>
+				</td>
+			</tr>
+			 <tr>
+				<td style="text-align: center;">
+				  <img src="cow.png" width="250px"/>
+				</td>
+				<td style="text-align: center;">
+				  <img src="maxplanck.png" width="250px"/>
+				</td>
+			  </tr>
+			</table>
+		</div>
+		<p>The BVH acceleration resulted in dramatic performance improvements across all test files, with
+			 a speedup of approximately 80 times compared to brute-force intersection testing, depending on
+			  the complexity of the scene. The cow.dae scene saw an improvement from 91.43 seconds to 1.15 
+			  seconds (79 times faster), while beetle.dae showed the most significant gain—from 116.73 seconds to 1.12 seconds (106 times faster). The teapot.dae scene was approximately 40 times faster with BVH.
+These results shows that BVH performs especially well in scenes with high complexity, where the
+ optimization becomes more noticeable due to the partitioning structure effectively skipping many primitive
+  intersection tests. Overall, the results show that BVH is highly effective in optimizing the runtime of the renderer.
+</p>
+
+		<h2>Part 3: Direct Illumination</h2>
+
+		<h3>Hemisphere Sampling (<code>estimate_direct_lighting_hemisphere</code>)</h3>
+		<p>Determine the color coming from any light source at the intersection point using uniform sampling in a hemisphere.</p>
+		<ol>
+		<li>Creates a local coordinate system aligned with the surface normal (<code>o2w</code> matrix)</li>
+		<li>Generates uniform samples over a hemisphere centered at the hit point</li>
+		<li>For each sample:
+			<ul>
+			<li>Converts from hemisphere coordinates to world coordinates: <code>wi_world = o2w * w_in</code></li>
+			<li>Casts a shadow ray toward the sampled direction: <code>Ray shadow_ray(hit_p, wi_world)</code></li>
+			<li>Uses <code>bvh->intersect</code> to update the closest intersection and check for hits</li>
+			<li>If intersection exists and is a light source (<code>emission > 0</code>):
+				<ul>
+				<li>Calculates incoming radiance (<code>L_i</code>) from light emission</li>
+				<li>Evaluates BRDF (<code>f</code>) at intersection point (how surface reflects light)</li>
+				<li>Computes cosine term (<code>abs_cos_theta</code>) (light reception efficiency based on angle)</li>
+				</ul>
+			</li>
+			</ul>
+		</li>
+		<li>Averages results and divides by uniform PDF (<code>1/(2π)</code>)</li>
+		</ol>
+
+		<h3>Importance Sampling (<code>estimate_direct_lighting_importance</code>)</h3>
+		<p>Samples only from light directions instead of uniform hemisphere sampling, producing less noisy and more efficient results.</p>
+		<ol>
+		<li>Iterates through all lights in scene:
+			<ul>
+			<li><strong>For non-delta lights (area lights):</strong>
+				<ul>
+				<li>Takes <code>ns_area_light</code> samples per light</li>
+				<li>Uses <code>light->sample_L()</code> to get: Light direction (<code>wi</code>), Distance to light, PDF of sample</li>
+					
+				<li>Checks visibility with shadow ray (only if ray is in desired hemisphere)</li>
+				<li>Constructs shadow ray with:
+					<ul>
+					<li>Origin (<code>hit_p + wi * 1e-4</code>)</li>
+					<li>Direction (<code>wi</code>)</li>
+					<li><code>min_t = 1e-4</code> (avoid self-intersection)</li>
+					<li><code>max_t = distToLight - 1e-4</code> (stop at light source)</li>
+					</ul>
+				</li>
+				<li>If no intersection before <code>max_t</code> (the ray is able to reaches light and the point is not in shadow):
+					<ul>
+					<li>Computes BRDF at first intersection</li>
+					<li>Calculates total light contribution: <code>L_i * f * cosine_term</code></li>
+					</ul>
+				</li>
+				</ul>
+			</li>
+			<li><strong>For delta lights (point lights):</strong>
+				<ul>
+				<li>Takes single sample (exact calculation)</li>
+				<li>Same visibility/BRDF calculation as area lights</li>
+				<li>Properly weights by light sample PDF</li>
+				</ul>
+			</li>
+			</ul>
+		</li>
+		</ol>
+			<div style="display: flex; flex-direction: column; align-items: center;">
+			<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			  <tr>
+				<td style="text-align: center;">
+				  <img src="part3/bunny_64_32.png" width="300px"/>
+				  <figcaption>CBbunny.dae with importance sampling</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="part3/CBbunny_H_64_32_2.png" width="300px"/>
+				  <figcaption>CBbunny.dae with hemisphere stampling</figcaption>
+				</td>
+			  </tr>
+			</table>
+		</div>
+		<figure>
+			<img src="part3/dragon_64_32.png" alt="Cornell Boxes with Bunnies" style="width:70%"/>
+			<figcaption>dragon.dae with importance sampling</figcaption>
+		</figure>
+
+				<p>Same scene importance sampling at diffent numbers of light ray</p>
+		<div style="display: flex; flex-direction: column; align-items: center;">
+			<table style="width: 100%; text-align: center; border-collapse: collapse;">
+				<tr>
+				<td style="text-align: center;">
+				  <img src="part3/bunny_1_1.png" width="300px"/>
+				  <figcaption>CBbunny.dae with -l=1</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="part3/bunny_1_4_t4.png" width="300px"/>
+				  <figcaption>CBbunny.dae with -l=4</figcaption>
+				</td>
+			  <tr>
+				<td style="text-align: center;">
+				  <img src="part3/bunny_1_16_t4.png" width="300px"/>
+				  <figcaption>CBbunny.dae with -l=16</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="part3/bunny_1_64_t4.png" width="300px"/>
+				  <figcaption>CBbunny.dae with -l=64</figcaption>
 				</td>
 			  </tr>
 			</table>
 		</div>
 		
-		<h2>Part 2: Bounding Volume Hierarchy</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+		<br>
 
-		<h2>Part 3: Direct Illumination</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-
+		
 		<h2>Part 4: Global Illumination</h2>
 		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
